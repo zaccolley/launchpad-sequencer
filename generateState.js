@@ -32,8 +32,8 @@ function generateRows() {
   return rows;
 }
 
-function generatePages() {
-  const pageAmount = 3;
+function generatePages(initialAmountOfActivePages) {
+  const pageAmount = initialAmountOfActivePages;
   const pages = [];
 
   for (let i = 0; i < pageAmount; i++) {
@@ -45,19 +45,10 @@ function generatePages() {
 }
 
 function generateState(intialBpm, initialAmountOfActivePages) {
-  const view = {
-    name: 'beats',
-    pageNo: 1
-  };
-
-  const beats = {
-    pages: generatePages(initialAmountOfActivePages)
-  };
-
   return {
     bpm: intialBpm,
     playState: 'stopped',
-    view,
-    beats
+    pageNo: 1,
+    pages: generatePages(initialAmountOfActivePages)
   }
 }

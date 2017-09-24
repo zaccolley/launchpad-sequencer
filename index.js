@@ -1,11 +1,11 @@
 const AUDIO_FILES = [
   'drum1.mp3',
-  'drum2.mp3',
   'drum3.mp3',
+  'drum2.mp3',
 ];
 
 const INITIAL_BPM = 250;
-const INITIAL_AMOUNT_OF_ACTIVE_PAGES = 3;
+const INITIAL_AMOUNT_OF_ACTIVE_PAGES = 4;
 
 const state = generateState(INITIAL_BPM, INITIAL_AMOUNT_OF_ACTIVE_PAGES);
 
@@ -65,7 +65,7 @@ audio().then(audioItems => {
 
         launchpad.sendMessage({ circle: 'C' }, beatCount % 2 ? 'yellow' : 'blank');
 
-        const page = state.beats.pages[state.view.pageNo - 1];
+        const page = state.pages[state.pageNo - 1];
         const rows = page.rows;
 
         for (let rowCount = 0; rowCount < audioItems.length; rowCount++) {
@@ -89,10 +89,10 @@ audio().then(audioItems => {
         previousBeat = beatCount;
 
         if (beatCount === beatsInLoop) {
-          if (state.view.pageNo === state.beats.pages.length) {
-            state.view.pageNo = 1
+          if (state.pageNo === state.pages.length) {
+            state.pageNo = 1
           } else {
-            state.view.pageNo = state.view.pageNo + 1;
+            state.pageNo = state.pageNo + 1;
           }
 
           beatCount = 1;
@@ -112,13 +112,13 @@ audio().then(audioItems => {
     }
 
     function updatePage() {
-      for (let i = 1; i <= state.beats.pages.length; i++) {
+      for (let i = 1; i <= state.pages.length; i++) {
         launchpad.sendMessage({ circle: i }, 'yellow');
       }
 
-      launchpad.sendMessage({ circle: state.view.pageNo }, 'red');
+      launchpad.sendMessage({ circle: state.pageNo }, 'red');
 
-      const rows = state.beats.pages[state.view.pageNo - 1].rows;
+      const rows = state.pages[state.pageNo - 1].rows;
       for (let r = 0; r < rows.length; r++) {
         const pads = rows[r].pads;
         for (let p = 0; p < pads.length; p++) {
@@ -181,16 +181,19 @@ audio().then(audioItems => {
         return;
       }
 
-      if (message.circle === state.view.pageNo) {
+      if (message.circle === state.pageNo) {
         return;
       }
 
-      state.view.pageNo = parseInt(message.circle, 10);
+      // otherwise top circle buttons
+
+      state.pageNo = parseInt(message.circle, 10);
+
       updatePage();
     }
 
     function handleMiddlePads(message) {
-      const page = state.beats.pages[state.view.pageNo - 1];
+      const page = state.pages[state.pageNo - 1];
       const row = page.rows[message.y];
       const pad = row.pads[message.x];
 
