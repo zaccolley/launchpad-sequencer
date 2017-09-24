@@ -31,22 +31,25 @@ function audio() {
 
 audio().then(audioItems => {
   initLaunchpad().then(launchpad => {
-
-    setupEventListener();
     clearBoard();
 
-    bpmButtonsSetup();
+    function setupEventListener() {
+      launchpad.events.addEventListener('up', e => handleMessage(e.detail));
+      window.addEventListener('beforeunload', clearBoard);
+    }
+    setupEventListener();
 
+    bpmButtonsSetup();
     updatePage();
 
-    musicLoop();
+    startMusicLoop();
 
-    function musicLoop() {
+    function startMusicLoop() {
       const beatsInLoop = 8;
       let beatCount = 1;
       let previousBeat = beatsInLoop;
 
-      const musicLooplol = function() {
+      const musicLoopBeat = function() {
         const minuteInMilliseconds = 60 * 1000;
         const beatInterval = minuteInMilliseconds / state.bpm;
 
@@ -55,7 +58,7 @@ audio().then(audioItems => {
             launchpad.sendMessage({ x: beatCount - 1, y: rowCount }, 'yellow');
           }
 
-          setTimeout(musicLooplol, beatInterval);
+          setTimeout(musicLoopBeat, beatInterval);
           return;
         }
 
@@ -100,10 +103,10 @@ audio().then(audioItems => {
           beatCount++;
         }
 
-        setTimeout(musicLooplol, beatInterval);
+        setTimeout(musicLoopBeat, beatInterval);
       }
 
-      musicLooplol();
+      musicLoopBeat();
     }
 
     function bpmButtonsSetup() {
@@ -127,11 +130,6 @@ audio().then(audioItems => {
           launchpad.sendMessage({ x: p, y: r }, padColour);
         }
       }
-    }
-
-    function setupEventListener() {
-      launchpad.events.addEventListener('up', e => handleMessage(e.detail));
-      window.addEventListener('beforeunload', clearBoard);
     }
 
     function changeBPM(amount, direction) {
