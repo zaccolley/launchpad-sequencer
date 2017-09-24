@@ -29,7 +29,7 @@ const rightCircleButtons = {
 };
 
 function getKeyByValue(object, value) {
-  return Object.keys(object).find(key => object[key] === value);
+  return Object.keys(object).find(key => object[key] === value.toString());
 }
 
 function getLaunchPadInputOutput() {
@@ -156,7 +156,7 @@ function mapNumberBack(object) {
   }
 }
 
-function launchpad() {
+function initLaunchpad() {
   return new Promise((resolve, reject) => {
   getLaunchPadInputOutput()
     .then(pad => {

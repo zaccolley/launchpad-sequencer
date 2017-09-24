@@ -1,183 +1,225 @@
-const state = generateState();
+const AUDIO_FILES = [
+  'drum1.mp3',
+  'drum2.mp3',
+  'drum3.mp3',
+];
 
-function generatePad() {
-  const pad = {
-    active: false
-  };
+const INITIAL_BPM = 250;
+const INITIAL_AMOUNT_OF_ACTIVE_PAGES = 3;
 
-  return pad;
-}
+const state = generateState(INITIAL_BPM, INITIAL_AMOUNT_OF_ACTIVE_PAGES);
 
-function generatePads() {
-  const padAmount = 8;
-  const pads = [];
+function audio() {
+  const audioItems = [];
 
-  for (let i = 0; i < padAmount; i++) {
-    const pad = generatePad();
-    pads.push(pad);
-  }
+  for (let i = 0; i < AUDIO_FILES.length; i++) {
+    const audioFile = AUDIO_FILES[i];
 
-  return pads;
-}
-
-function generateRows() {
-  const rowAmount = 8;
-  const rows = [];
-
-  for (let i = 0; i < rowAmount; i++) {
-    const pads = generatePads();
-    rows.push(pads);
-  }
-
-  return rows;
-}
-
-function generatePages() {
-  // one page for now
-  return [
-    {
-      rows: generateRows()
-    }
-  ];
-}
-
-function generateState() {
-  const view = {
-    name: 'beats',
-    pageNo: 0
-  };
-
-  const beats = {
-    pages: generatePages()
-  };
-
-  return {
-    bpm: 100,
-    view,
-    beats
-  }
-}
-
-launchpad().then(pads => {
-  main();
-
-  function getState() {
-    return state;
-  }
-
-  function mapBeatToPad(rowNo, padNo) {
-    return { x: padNo, y: rowNo };
-  }
-
-  function setState(message) {
-    const existingItemIndex = state.findIndex(item => {
-      return item.id === message.id;
+    const newAudioItem = new Audio(audioFile);
+    const newAudioItemPromise = new Promise(resolve => {
+      newAudioItem.addEventListener('load', () => {
+        newAudioItem(newAudioItem);
+      });
+      newAudioItem.load();
     });
 
-    if (existingItemIndex !== -1) {
-      state[existingItemIndex] = message;
-    } else {
-      state.push(message);
-    }
+    audioItems.push(newAudioItem);
   }
 
-  const drum1 = document.querySelector('.drum-1');
-  const drum2 = document.querySelector('.drum-2');
-  const drum3 = document.querySelector('.drum-3');
+  return Promise.all(audioItems);
+}
 
-  const audio = [
-    drum1, drum2, drum3, drum1, drum1, drum1, drum1, drum1, drum1, drum1
-  ];
+audio().then(audioItems => {
+  initLaunchpad().then(launchpad => {
 
-  function musicLoop() {
-    const beatsInLoop = 8;
-    let beatCount = 1;
-    let previousBeat = beatsInLoop;
-
-    const musicLooplol = function() {
-      const page = state.beats.pages[state.view.pageNo];
-      const rows = page.rows;
-
-      for (let rowCount = 0; rowCount < rows.length; rowCount++) {
-        const row = rows[rowCount];
-
-        const previousBeatItem = row[previousBeat - 1];
-        const currentBeatItem = row[beatCount - 1];
-
-        const prevColour = previousBeatItem.active ? 'red' : 'blank';
-        pads.sendMessage(mapBeatToPad(rowCount, previousBeat - 1), prevColour);
-
-        const currColour = currentBeatItem.active ? 'green' : 'yellow';
-        pads.sendMessage(mapBeatToPad(rowCount, beatCount - 1), currColour);
-
-        if (currentBeatItem.active) {
-          audio[rowCount].cloneNode().play();
-        }
-      }
-
-      previousBeat = beatCount;
-
-      if (beatCount === beatsInLoop) {
-        beatCount = 1;
-      } else {
-        beatCount++;
-      }
-
-      const minuteInMilliseconds = 60 * 1000;
-      const beatInterval = minuteInMilliseconds / state.bpm;
-      setTimeout(musicLooplol, beatInterval);
-    }
-
-    musicLooplol();
-  }
-
-  function main() {
     setupEventListener();
     clearBoard();
+
+    bpmButtonsSetup();
+
+    updatePage();
+
     musicLoop();
-  }
 
-  function setupEventListener() {
-    pads.events.addEventListener('up', e => handleMessage(e.detail));
-    window.addEventListener('beforeunload', clearBoard);
-  }
+    function musicLoop() {
+      const beatsInLoop = 8;
+      let beatCount = 1;
+      let previousBeat = beatsInLoop;
 
-  function handleMessage(message) {
-    if (state.view.name === 'beats') {
-      if (typeof message.circle !== 'undefined') {
-        if (message.circle === 'A') {
-          if (state.bpm < 1000) {
-            state.bpm += 10;
+      const musicLooplol = function() {
+        const minuteInMilliseconds = 60 * 1000;
+        const beatInterval = minuteInMilliseconds / state.bpm;
+
+        if (state.playState === 'stopped') {
+          for (let rowCount = 0; rowCount < audioItems.length; rowCount++) {
+            launchpad.sendMessage({ x: beatCount - 1, y: rowCount }, 'yellow');
           }
-          console.info('BPM:', state.bpm);
+
+          setTimeout(musicLooplol, beatInterval);
+          return;
         }
 
-        if (message.circle === 'B') {
-          if (state.bpm > 10) {
-            state.bpm -= 10;
-          }
-          console.info('BPM:', state.bpm);
+        if (beatCount === 1) {
+          updatePage();
         }
+
+        launchpad.sendMessage({ circle: 'C' }, beatCount % 2 ? 'yellow' : 'blank');
+
+        const page = state.beats.pages[state.view.pageNo - 1];
+        const rows = page.rows;
+
+        for (let rowCount = 0; rowCount < audioItems.length; rowCount++) {
+          const row = rows[rowCount];
+          const pads = row.pads;
+
+          const previousBeatItem = pads[previousBeat - 1];
+          const currentBeatItem = pads[beatCount - 1];
+
+          const prevColour = previousBeatItem.active ? 'red' : 'blank';
+          launchpad.sendMessage({ x: previousBeat - 1, y: rowCount }, prevColour);
+
+          const currColour = currentBeatItem.active ? 'green' : 'yellow';
+          launchpad.sendMessage({ x: beatCount - 1, y: rowCount }, currColour);
+
+          if (currentBeatItem.active) {
+            audioItems[rowCount].cloneNode().play();
+          }
+        }
+
+        previousBeat = beatCount;
+
+        if (beatCount === beatsInLoop) {
+          if (state.view.pageNo === state.beats.pages.length) {
+            state.view.pageNo = 1
+          } else {
+            state.view.pageNo = state.view.pageNo + 1;
+          }
+
+          beatCount = 1;
+        } else {
+          beatCount++;
+        }
+
+        setTimeout(musicLooplol, beatInterval);
       }
 
-      if (typeof message.x !== 'undefined' && typeof message.y !== 'undefined') {
-        const page = state.beats.pages[state.view.pageNo];
-        const row = page.rows[message.y];
-        const pad = row[message.x];
+      musicLooplol();
+    }
 
-        if (pad.active) {
-          pads.sendMessage(message, 'blank');
-          pad.active = false;
-        } else {
-          pads.sendMessage(message, 'red');
-          pad.active = true;
+    function bpmButtonsSetup() {
+      launchpad.sendMessage({ circle: 'A' }, 'green');
+      launchpad.sendMessage({ circle: 'B' }, 'red');
+    }
+
+    function updatePage() {
+      for (let i = 1; i <= state.beats.pages.length; i++) {
+        launchpad.sendMessage({ circle: i }, 'yellow');
+      }
+
+      launchpad.sendMessage({ circle: state.view.pageNo }, 'red');
+
+      const rows = state.beats.pages[state.view.pageNo - 1].rows;
+      for (let r = 0; r < rows.length; r++) {
+        const pads = rows[r].pads;
+        for (let p = 0; p < pads.length; p++) {
+          const pad = pads[p];
+          const padColour = pad.active ? 'red' : 'blank';
+          launchpad.sendMessage({ x: p, y: r }, padColour);
         }
       }
     }
-  }
 
-  function clearBoard() {
-    pads.sendMessageAll('blank');
-  }
+    function setupEventListener() {
+      launchpad.events.addEventListener('up', e => handleMessage(e.detail));
+      window.addEventListener('beforeunload', clearBoard);
+    }
+
+    function changeBPM(amount, direction) {
+      const MAX_BPM = 1000;
+
+      if (direction === 'increase' && state.bpm < MAX_BPM) {
+        state.bpm += amount;
+        return console.info('BPM:', state.bpm);
+      }
+
+      if (direction === 'decrease' && state.bpm > amount) {
+        state.bpm -= amount;
+        return console.info('BPM:', state.bpm);
+      }
+    }
+
+    function handlesBeatsViewCirclePads(message) {
+      if (message.circle === 'A') {
+        return changeBPM(10, 'increase');
+      }
+
+      if (message.circle === 'B') {
+        return changeBPM(10, 'decrease');
+      }
+
+      if (message.circle === 'H') {
+        if (state.playState === 'stopped') {
+          state.playState = 'playing';
+          launchpad.sendMessage({ circle: 'H' }, 'green');
+        } else {
+          state.playState = 'stopped';
+          launchpad.sendMessage({ circle: 'H' }, 'red');
+        }
+
+        updatePage();
+
+        return;
+      }
+
+      if (
+        message.circle === 'C' ||
+        message.circle === 'D' ||
+        message.circle === 'E' ||
+        message.circle === 'F' ||
+        message.circle === 'G'
+      ) {
+        return;
+      }
+
+      if (message.circle === state.view.pageNo) {
+        return;
+      }
+
+      state.view.pageNo = parseInt(message.circle, 10);
+      updatePage();
+    }
+
+    function handleMiddlePads(message) {
+      const page = state.beats.pages[state.view.pageNo - 1];
+      const row = page.rows[message.y];
+      const pad = row.pads[message.x];
+
+      if (!pad.active) {
+        launchpad.sendMessage(message, 'orange');
+        pad.active = true;
+        return;
+      }
+
+      launchpad.sendMessage(message, 'blank');
+      pad.active = false;
+    }
+
+    function handleMessage(message) {
+      const isRightCirclePads = typeof message.circle !== 'undefined';
+      if (isRightCirclePads) {
+        return handlesBeatsViewCirclePads(message)
+      }
+
+      const isMiddlePads = typeof message.x !== 'undefined' && typeof message.y !== 'undefined';
+      if (isMiddlePads) {
+        return handleMiddlePads(message);
+      }
+    }
+
+    function clearBoard() {
+      launchpad.sendMessageAll('blank');
+    }
+  })
+  .catch(console.error);
 })
 .catch(console.error);
