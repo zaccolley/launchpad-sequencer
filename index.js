@@ -9,6 +9,18 @@ const INITIAL_AMOUNT_OF_ACTIVE_PAGES = 4;
 
 const state = generateState(INITIAL_BPM, INITIAL_AMOUNT_OF_ACTIVE_PAGES);
 
+function changeBPM(amount, direction) {
+  const MAX_BPM = 1000;
+
+  if (direction === 'increase' && state.bpm < MAX_BPM) {
+    state.bpm += amount;
+  }
+
+  if (direction === 'decrease' && state.bpm > amount) {
+    state.bpm -= amount;
+  }
+}
+
 function audio() {
   const audioItems = [];
 
@@ -31,11 +43,11 @@ function audio() {
 
 audio().then(audioItems => {
   initLaunchpad().then(launchpad => {
-    clearBoard();
+    launchpad.clear();
 
     function setupEventListener() {
       launchpad.events.addEventListener('up', e => handleMessage(e.detail));
-      window.addEventListener('beforeunload', clearBoard);
+      window.addEventListener('beforeunload', launchpad.clear);
     }
     setupEventListener();
 
@@ -122,27 +134,13 @@ audio().then(audioItems => {
       launchpad.sendMessage({ circle: state.pageNo }, 'red');
 
       const rows = state.pages[state.pageNo - 1].rows;
-      for (let r = 0; r < rows.length; r++) {
-        const pads = rows[r].pads;
-        for (let p = 0; p < pads.length; p++) {
-          const pad = pads[p];
+      for (let rowCount = 0; rowCount < rows.length; rowCount++) {
+        const pads = rows[rowCount].pads;
+        for (let padCount = 0; padCount < pads.length; padCount++) {
+          const pad = pads[padCount];
           const padColour = pad.active ? 'red' : 'blank';
-          launchpad.sendMessage({ x: p, y: r }, padColour);
+          launchpad.sendMessage({ x: padCount, y: rowCount }, padColour);
         }
-      }
-    }
-
-    function changeBPM(amount, direction) {
-      const MAX_BPM = 1000;
-
-      if (direction === 'increase' && state.bpm < MAX_BPM) {
-        state.bpm += amount;
-        return console.info('BPM:', state.bpm);
-      }
-
-      if (direction === 'decrease' && state.bpm > amount) {
-        state.bpm -= amount;
-        return console.info('BPM:', state.bpm);
       }
     }
 
@@ -215,10 +213,6 @@ audio().then(audioItems => {
       if (isMiddlePads) {
         return handleMiddlePads(message);
       }
-    }
-
-    function clearBoard() {
-      launchpad.sendMessageAll('blank');
     }
   })
   .catch(console.error);

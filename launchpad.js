@@ -211,7 +211,12 @@ function initLaunchpad() {
         }
       }
 
+      function clear() {
+        return sendMessageAll('blank');
+      }
+
       return resolve({
+        clear,
         events,
         sendMessageAll,
         sendMessage
