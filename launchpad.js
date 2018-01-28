@@ -1,5 +1,9 @@
+/* global CustomEvent */
+
 import { getKeyByValue } from './helpers.js'
 
+const GRID_SIZE = 8
+const CIRCLE_PAD_POSITIONS = 'ABCDEFGH12345678'
 const TOP_CIRCLE_BUTTON_VALUE = 176
 const NOT_TOP_CIRCLE_BUTTON_VALUE = 144
 const PRESSED_DOWN_VALUE = 127
@@ -128,13 +132,27 @@ function initLaunchpad () {
     }
 
     function handleMidiAccessSuccess (midiAccess) {
-      console.log('MIDI API ready')
+      console.info('MIDI API ready')
 
       for (let entry of midiAccess.inputs) {
         const input = entry[1]
 
         if (isMidiItemLaunchpad(input)) {
           launchpad.input = input
+
+          launchpad.input.addEventListener('midimessage', event => {
+            const midiData = event.data
+
+            const message = mapMidiDataToMessage(midiData)
+
+            const padPressEvent = new CustomEvent('padpress', { detail: message })
+            launchpad.input.dispatchEvent(padPressEvent)
+
+            const eventName = message.value === 'up' ? 'padup' : 'paddown'
+            delete message.value
+            const padEvent = new CustomEvent(eventName, { detail: message })
+            launchpad.input.dispatchEvent(padEvent)
+          })
         }
       }
 
@@ -150,6 +168,47 @@ function initLaunchpad () {
         return console.error("Couldn't detect Launchpad")
       }
 
+      function setPad (data) {
+        if (!data.position || !data.value) {
+          return
+        }
+
+        if (
+          typeof data.position.x !== 'undefined' &&
+          typeof data.position.y !== 'undefined'
+        ) {
+          data.grid = true
+        }
+
+        if (CIRCLE_PAD_POSITIONS.includes(data.position)) {
+          data.circle = true
+        }
+
+        if (!(data.grid || data.circle)) {
+          return
+        }
+
+        launchpad.output.send(mapMessageToMidiData(data))
+      }
+
+      function fill (value) {
+        for (let x = 0; x < GRID_SIZE; x++) {
+          for (let y = 0; y < GRID_SIZE; y++) {
+            const position = { x, y }
+            launchpad.setPad({ position, value })
+          }
+        }
+
+        for (let i = 0; i < CIRCLE_PAD_POSITIONS.length; i++) {
+          const position = CIRCLE_PAD_POSITIONS[i]
+          launchpad.setPad({ position, value })
+        }
+      }
+
+      launchpad.setPad = setPad
+      launchpad.fill = fill
+      launchpad.GRID_SIZE = GRID_SIZE
+
       return resolve(launchpad)
     }
 
@@ -160,7 +219,5 @@ function initLaunchpad () {
 }
 
 export {
-  initLaunchpad,
-  mapMidiDataToMessage,
-  mapMessageToMidiData
+  initLaunchpad
 }

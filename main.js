@@ -1,59 +1,97 @@
-import {
-  initLaunchpad,
-  mapMidiDataToMessage,
-  mapMessageToMidiData
-} from './launchpad.js'
-
-const GRID_SIZE = 8
+import { cloneArray } from './helpers.js'
+import { initLaunchpad } from './launchpad.js'
 
 initLaunchpad().then(launchpad => {
-  function fillLaunchpad (color) {
-    for (let x = 0; x < GRID_SIZE; x++) {
-      for (let y = 0; y < GRID_SIZE; y++) {
-        launchpad.output.send(mapMessageToMidiData({
-          grid: true,
-          position: { x, y },
-          value: color
-        }))
-      }
-    }
-
-    const circlePadPositions = 'ABCDEFGH12345678'
-    for (let i = 0; i < circlePadPositions.length; i++) {
-      const circlePadPosition = circlePadPositions[i]
-      launchpad.output.send(mapMessageToMidiData({
-        circle: true,
-        position: circlePadPosition,
-        value: color
-      }))
-    }
+  const state = {
+    bpm: 200, // beats per minute
+    beats: []
   }
+
+  function initaliseState () {
+    const beatRow = Array.from({ length: launchpad.GRID_SIZE }, () => false)
+    const beats = Array.from({ length: launchpad.GRID_SIZE }, () => cloneArray(beatRow))
+    state.beats = beats
+
+    console.log('Initial state', state)
+  }
+  initaliseState()
 
   function clearLaunchpad () {
-    fillLaunchpad('blank')
+    launchpad.fill('blank')
   }
 
-  function handleMidiMessages (event) {
-    const midiData = event.data
+  function handlePadUpEvents (event) {
+    const message = event.detail
 
-    const message = mapMidiDataToMessage(midiData)
-
-    launchpad.output.send(
-      mapMessageToMidiData({
-        grid: message.grid,
-        circle: message.circle,
-        position: message.position,
-        value: 'green'
-      })
-    )
-
-    // console.log(message)
+    if (message.grid) {
+      handleGridPadPress(message)
+    }
   }
 
-  console.log('Launchpad ready', launchpad)
-  launchpad.input.addEventListener('midimessage', handleMidiMessages)
+  function handleGridPadPress (message) {
+    const { x, y } = message.position
+
+    const currentBeatState = state.beats[y][x]
+    state.beats[y][x] = !currentBeatState
+
+    launchpad.setPad({
+      position: { x, y },
+      value: state.beats[y][x] ? 'orange' : 'blank'
+    })
+  }
+
+  function loop (callback) {
+    const MINUTE = 60 * 1000
+    const intervalTime = MINUTE / state.bpm
+
+    let position = 0
+
+    setInterval(() => {
+      callback(position)
+
+      position++
+
+      if (position > launchpad.GRID_SIZE - 1) {
+        position = 0
+      }
+    }, intervalTime)
+  }
+
+  loop((currentPadPosition) => {
+    const firstPad = currentPadPosition === 0
+
+    for (let y = 0; y < launchpad.GRID_SIZE; y++) {
+      const beatRow = state.beats[y]
+
+      const currentPadActive = beatRow[currentPadPosition]
+      const currentPad = {
+        position: {
+          x: currentPadPosition,
+          y
+        },
+        value: currentPadActive ? 'red' : 'green'
+      }
+      launchpad.setPad(currentPad)
+
+      const previousPadPosition = currentPadPosition - 1
+      const previousPadActive = beatRow[previousPadPosition]
+      const previousPad = {
+        position: {
+          x: firstPad ? launchpad.GRID_SIZE - 1 : previousPadPosition,
+          y
+        },
+        value: previousPadActive ? 'orange' : 'blank'
+      }
+      launchpad.setPad(previousPad)
+    }
+  })
+
+  console.info('Launchpad ready', launchpad)
+  launchpad.input.addEventListener('padup', handlePadUpEvents)
+
   clearLaunchpad()
 })
 .catch(reason => {
-  console.error('Launchpad error:', reason)
+  console.error('Launchpad error', reason)
 })
+
