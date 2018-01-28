@@ -69,15 +69,17 @@ initLaunchpad().then(launchpad => {
           x: currentPadPosition,
           y
         },
-        value: currentPadActive ? 'red' : 'green'
+        value: currentPadActive ? 'red' : 'yellow'
       }
       launchpad.setPad(currentPad)
 
       const previousPadPosition = currentPadPosition - 1
-      const previousPadActive = beatRow[previousPadPosition]
+      const lastPadPosition = launchpad.GRID_SIZE - 1
+      const previousPadX = firstPad ? lastPadPosition : previousPadPosition
+      const previousPadActive = beatRow[previousPadX]
       const previousPad = {
         position: {
-          x: firstPad ? launchpad.GRID_SIZE - 1 : previousPadPosition,
+          x: previousPadX,
           y
         },
         value: previousPadActive ? 'orange' : 'blank'
