@@ -1,0 +1,27 @@
+{
+  "name": "launchpad-sequencer",
+  "version": "1.0.0",
+  "description": "a webmidi/web audio sequencer using a launchpad",
+  "main": "main.js",
+  "watch": {
+    "serve": "*.js"
+  },
+  "scripts": {
+    "serve": "serve ./",
+    "watch": "npm-watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zaccolley/launchpad-sequencer.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/zaccolley/launchpad-sequencer/issues"
+  },
+  "homepage": "https://github.com/zaccolley/launchpad-sequencer#readme",
+  "dependencies": {
+    "npm-watch": "^0.3.0"
+  }
+}
